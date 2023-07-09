@@ -339,8 +339,11 @@ def num_tokens_from_messages(messages, model):
 #过滤字典非中日韩文的键值对
 def remove_non_cjk(dic):
     pattern = re.compile(r'[\u4e00-\u9fff\u3040-\u30ff\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]+')
+    #除掉只含标点的键值对
+    pattern2 = re.compile(r'[…！？。、，．・「」『』【】（）［］〔〕｛｝｟｠〈〉《》〖〗〘〙〚〛〜～々〆〤〥〦〧〨〩〪〭〮〯〫〬〰〱〲〳〴〵〶〷〸〹〺〻〼〽〾〿]')
     for key, value in list(dic.items()):
-        if not pattern.search(str(value)):#加个str防止整数型的value报错
+        tmp = pattern2.sub('', str(value))
+        if not pattern.search(tmp):#加个str防止整数型的value报错
             del dic[key]
 
 #将字典中的int类型的key与value转换为str类型
@@ -1392,10 +1395,14 @@ def Request_test():
         openai.api_base = "https://api.openai.com/v1" #设置官方api请求地址,防止使用了代理后再使用官方时出错
         
         #如果填入地址，则设置代理
+        # if Proxy_Address :
+        #     print("[INFO] 环境代理地址是:",Proxy_Address,'\n') 
+        #     os.environ["http_proxy"]=Proxy_Address
+        #     os.environ["https_proxy"]=Proxy_Address
+        #edit
         if Proxy_Address :
             print("[INFO] 环境代理地址是:",Proxy_Address,'\n') 
-            os.environ["http_proxy"]=Proxy_Address
-            os.environ["https_proxy"]=Proxy_Address
+            openai.api_base = Proxy_Address
 
     #如果启用代理平台，获取界面配置信息
     elif Window.Interface12.checkBox.isChecked() :
@@ -1495,10 +1502,14 @@ def Config():
         openai.api_base = "https://api.openai.com/v1" #设置官方api请求地址,防止使用了代理后再使用官方时出错
 
         #如果填入地址，则设置代理
+        # if Proxy_Address :
+        #     print("[INFO] 系统代理地址是:",Proxy_Address,'\n') 
+        #     os.environ["http_proxy"]=Proxy_Address
+        #     os.environ["https_proxy"]=Proxy_Address
+        #edit
         if Proxy_Address :
-            print("[INFO] 系统代理地址是:",Proxy_Address,'\n') 
-            os.environ["http_proxy"]=Proxy_Address
-            os.environ["https_proxy"]=Proxy_Address
+            print("[INFO] 环境代理地址是:",Proxy_Address,'\n') 
+            openai.api_base = Proxy_Address
     
 
     #如果启用代理平台，获取OpenAI的界面配置信息
