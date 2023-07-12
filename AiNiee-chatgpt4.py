@@ -2469,7 +2469,7 @@ def Make_request():
                 if ((Running_status == 2 and Window.Interface15.SwitchButton1.isChecked()) or (Running_status == 3 and Window.Interface16.SwitchButton1.isChecked())) :
                     #主要检查AI回复时，有没有某一行为空或者只是回复符号------------------------------------------------------
                     if (Error_Type[0]== 0) and (Error_Type[1] == 0): #注意错误的缩写方法Error_Type[0] or Error_Type[1] == 0，以及注意大括号括起来下的整体逻辑
-                        for value in response_content_dict.values():
+                        for key, value in response_content_dict.items():
                             #检查value是不是None，因为AI回回复null，但是json.loads()会把null转化为None
                             if value is None:
                                 Error_Type[2] = 1
@@ -2484,8 +2484,11 @@ def Make_request():
 
                             #如果有某一行只是回复符号就把Error_Type[2]改为1
                             if A+B+C+D == 0:
-                                Error_Type[2] = 1
-                                break
+                                #如果当前行原文除了标点符号外只有一个っ符号，则忽略，否则就把Error_Type[2]改为1
+                                japanese_pattern = re.compile(r'[\u3040-\u30FF\u31F0-\u31FF\uFF65-\uFF9F]') # 匹配日文字符的正则表达式
+                                if set(japanese_pattern.findall(subset_mid[int(key)]))!=set('っ'):
+                                    Error_Type[2] = 1
+                                    break
 
                     #主要检查AI回复时，符号与字数是否能够与原文大致对上------------------------------------------------------
                     if (Error_Type[0]== 0) and (Error_Type[1]== 0) and (Error_Type[2] == 0):
