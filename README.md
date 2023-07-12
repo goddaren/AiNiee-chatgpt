@@ -9,7 +9,6 @@
 [![下载地址](https://img.shields.io/badge/下载地址-点击下载-1E90FF)](https://github.com/NEKOparapa/AiNiee-chatgpt/releases)
 [![教程视频](https://img.shields.io/badge/教程视频-点击观看-ff69b4)](https://www.bilibili.com/video/BV18c411K7WN)
 
-
 **这是一款基于`Mtool`或`Translator++`的 AI自动批翻译工具,主要是用来翻译各种RPG游戏**
   
 # 声明🧾 
@@ -32,7 +31,7 @@
     > 官方账号配置说明:<br>
     > `启用该平台`: 如果使用该平台的AI进行翻译,请勾上<br>
   
-    >`账号类型`: 新注册的5刀余额账号为免费账号。账号绑定信用卡后，会升级为120刀余额的付费账号（48h内）,过了48小时后就是付费账号（48h后）。不同账号类型，OpenAi的速率限制不同，请根据实际情况选择。另外说明一下在店铺买的账号基本都是付费账号（48h后）<br>
+    >`账号类型`: 新注册的5刀余额账号为免费账号。账号绑定信用卡后，会升级为120刀余额的付费账号（48h内）,过了48小时后就是付费账号（48h后）。不同账号类型，OpenAi的速率限制不同，请根据实际情况选择。另外说明一下在店铺买的120刀账号基本都是付费账号（48h后）<br>
   
     > `模型选择`: 默认是GPT3.5最新模型，请自行了解模型之间的区别后再进行更改。如果你的账号获得了GPT4的使用资格,请选择付费账号（48h后）和gpt-4相关模型来进行翻译<br>
   
@@ -64,7 +63,7 @@
   
     >`换行符保留`: 该功能尽可能地保留文本中的/r/n，但不总是能够完全保留，仍有小部分位置错乱或消失<br>
 
-    >`文本源语言`: 就是根据你需要翻译游戏的语言选择相应的源语言(翻译英文文本时，速率限制会不正确，请调低行数来进行翻译。因为无法在子线程使用tiktoken库的"cl100k_base"编码器，待建议与解决)<br>
+    >`文本源语言`: 就是根据你需要翻译游戏的语言选择相应的源语言<br>
 
     >`文本目标语言`: 你希望翻译成的语言<br>
   
@@ -159,19 +158,14 @@
   
   >采用权重的方式来给每对翻译计算总的相似度，如果小于阈值则进行重新翻译。检查出的错行文本和相似度计算过程日志会存储在DEBUG文件夹中的ErrorTxt Folder中。只支持日语到中文的文本，作为实验性功能，仍在优化中
   
-
-#  个人BB🍵
+#  常见问题🐛
 ***
-* 虽然有点编程基础,但还是第一次用Python写程序,不是程序员相关从业者,写法奇奇怪怪莫要怪。后续我不知道有没有时间去更新维护。既然已经开源了,就交给其他大佬了
+* 翻译“卡住”了————————等待
 
-* AI酱实在太厉害啦,一边写一边问她,什么都能回答,帮我写,帮我改bug,heart,heart,heart。
+* 翻译游戏到特定进度，就显示错误代码443————————换质量好的梯子
 
-* 建了一个QQ交流群821624890,群里只用于反应bug,功能建议,以及prompt词交流,不要分享各种游戏资源,发黄键镇
+* mtool导入翻译文本后，显示一句原文一句译文，或者全部原文————————更新mtool到最新版，或者找mtool作者
 
-# A酱BB🧉 
-***
-* 大佬好厉害,我只能帮大佬写写md,虽然写的不是很漂亮，但尽力了😭
-* 希望大家有机会也来我仓库玩玩(x
 # 类似工具🧰 
 ***
  * GPT-Translator 是一款前后端分离基于 OpenAI 的高效翻译软件。
@@ -181,6 +175,8 @@ https://github.com/XHXJ/json-GPT-translator
 https://github.com/Lilyltt/GalUpTs
 
 # 感谢💖
+[![xxxx](https://github.com/NEKOparapa/AiNiee-chatgpt/blob/main/Example%20image/Sponsor/徽章.png)](https://github.com/NEKOparapa/AiNiee-chatgpt/blob/main/Example%20image/Sponsor/赞赏码.png)
+
 都是为这个工具做出各种贡献的朋友，以下排名不分先后
->下划线君，孤狼，Takakura Anri，Amegi，hola，旧日，OYcedar，Abcuders，ChristinaA2M，NEKOparapa
+>下划线君，孤狼，Takakura Anri，Amegi，hola，旧日，OYcedar，Abcuders，ChristinaA2M，adastra9257，NEKOparapa
  

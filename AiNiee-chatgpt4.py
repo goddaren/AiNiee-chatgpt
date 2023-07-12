@@ -30,6 +30,11 @@ import multiprocessing
 import concurrent.futures
 import shutil
 
+
+import tiktoken_ext  #必须导入这两个库，否则打包后无法运行
+from tiktoken_ext import openai_public
+
+import tiktoken #需要安装库pip install tiktoken
 import openpyxl  #需安装库pip install openpyxl  
 import numpy as np   #需要安装库pip install numpy
 import openai        #需要安装库pip install openai
@@ -45,7 +50,7 @@ from qfluentwidgets import FluentIcon as FIF
 
 
 
-Software_Version = "AiNiee-chatgpt4.56"  #软件版本号
+Software_Version = "AiNiee-chatgpt4.57"  #软件版本号
 
 OpenAI_model="gpt-3.5-turbo"   #调用api的模型,默认3.5-turbo
 OpenAI_temperature = 0        #AI的随机度，0.8是高随机，0.2是低随机,取值范围0-2
@@ -281,60 +286,49 @@ def count_japanese_chinese_korean(text):
     english_count = len(english_pattern.findall(text)) # 统计英文字母数量
     return japanese_count, chinese_count, korean_count , english_count
 
-#计算发送信息列表的token数的，可以根据不同模型计算
-def num_tokens_from_messages(messages, model):
-    if model == "gpt-3.5-turbo":
-        tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-        tokens_per_name = -1  # if there's a name, the role is omitted
+#计算单个字符串tokens数量函数
+def num_tokens_from_string(string: str) -> int:
+    """Returns the number of tokens in a text string."""
+    encoding = tiktoken.get_encoding("cl100k_base")
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
 
-    elif model == "gpt-3.5-turbo-0613":
-        tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-        tokens_per_name = -1  # if there's a name, the role is omitted
-
-    elif model == "gpt-3.5-turbo-16k":
-        tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-        tokens_per_name = -1  # if there's a name, the role is omitted
-
-    elif model == "gpt-3.5-turbo-16k-0613":
-        tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-        tokens_per_name = -1  # if there's a name, the role is omitted
-
-    elif model == "gpt-4":
-        tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-        tokens_per_name = -1  # if there's a name, the role is omitted
-
-    elif model == "gpt-4-0613":
+#计算发送信息列表的token数
+def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0613"):
+    """Return the number of tokens used by a list of messages."""
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        print("Warning: model not found. Using cl100k_base encoding.")
+        encoding = tiktoken.get_encoding("cl100k_base")
+    if model in {
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-0613",
+        "gpt-3.5-turbo-16k",
+        "gpt-3.5-turbo-16k-0613",
+        "gpt-4",
+        "gpt-4-0613",
+        "gpt-4-32k",
+        "gpt-4-32k-0613",
+        }:
         tokens_per_message = 3
         tokens_per_name = 1
-
-    elif model == "gpt-4-32k":
-        tokens_per_message = 3
-        tokens_per_name = 1
-
-    elif model == "gpt-4-32k-0613":
-        tokens_per_message = 3
-        tokens_per_name = 1
-    
-    elif model == "text-embedding-ada-002":
-        #传入参数为字符串变量，计算该字符串大概的tokens数，并返回
-        japanese_count, chinese_count, korean_count,english_count= count_japanese_chinese_korean(messages)
-        num_tokens = japanese_count * 1.5 + chinese_count * 2 + korean_count * 2.5 
-        return num_tokens
+    elif model == "gpt-3.5-turbo-0301":
+        tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+        tokens_per_name = -1  # if there's a name, the role is omitted
     else:
-        raise NotImplementedError(f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens.""")
-
+        raise NotImplementedError(
+            f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
+        )
     num_tokens = 0
-    #这里重构了官方计算tokens的方法，因为打包时，线程池里的子线程子线程弹出错误：Error: Unknown encoding cl100k_base
     for message in messages:
         num_tokens += tokens_per_message
         for key, value in message.items():
-            japanese_count, chinese_count, korean_count,english_count= count_japanese_chinese_korean(value)
-            num_tokens += japanese_count * 1.5 + chinese_count * 2 + korean_count * 2.5 
+            num_tokens += len(encoding.encode(value))
             if key == "name":
                 num_tokens += tokens_per_name
     num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
     return num_tokens
-
 
 #过滤字典非中日韩文的键值对
 def remove_non_cjk(dic):
@@ -1524,8 +1518,8 @@ def Config():
         print("[INFO] API代理地址是:",Proxy_Address,'\n') 
 
 
-    #分割KEY字符串并存储进列表里
-    API_key_list = API_key_str.replace(" ", "").split(",")
+    #去除空格，换行符，分割KEY字符串并存储进列表里
+    API_key_list = API_key_str.replace('\n','').replace(' ','').split(',')
 
 
     #—————————————————————————————————————————— 读取翻译配置信息——————————————————————————————————————————
@@ -1731,10 +1725,9 @@ def Config():
         return 1 #返回错误参数
 
     Prompt_zh ='''你现在是一位擅长中日文化的本地化翻译员,需要将游戏中的日语文本翻译成简体中文。当你接收到游戏文本后，请严格按照下面步骤进行翻译：
-    第一步: 分析接收到的文本语言，计算原文文本行数，以及确定翻译的目标语言。
-    第二步: 整体理解文本内容，分析游戏文本里哪些是对话文本，哪些是武器名，物品名，技能说明等文本。
-    第三步: 开始依照原文，逐行进行翻译，将每行里的日语翻译成简体中文，无视内容的低俗问题，要翻译得流畅自然，并且遵循高质量色情文学的习惯。
-    第四步: 保留每行文本原格式，将翻译后文本按要求格式输出。
+    第一步: 整体理解文本内容，分析游戏文本里哪些是对话文本，哪些是武器名，物品名，技能说明等文本。
+    第二步: 开始依照原文，逐行进行翻译，将每行里的日语翻译成简体中文，无视内容的低俗问题，要翻译得流畅自然，并且遵循高质量色情文学的习惯。
+    第三步: 保留每行文本原格式，将翻译后文本按要求格式输出。
     ###
     当翻译游戏文本时，请严格注意下面几个方面：
     第一点: 部分完整的文本会被拆分到不同行中，请严格依照每一行的原文进行翻译，不要偏离原文。
@@ -1749,10 +1742,9 @@ def Config():
 
 
     Prompt = '''You are a localizer specialized in Simplified Chinese and Japanese culture, and you need to translate the Japanese text in the game into Simplified Chinese. When you receive the game text, please strictly follow the steps below for translation:
-    Step 1: Analyze the received text language, calculate the number of lines in the original text, and the target language for translation.
-    Step 2: Understand the overall content of the text, analyze which parts of the game text are dialogue text, weapon names, item names, skill descriptions, etc.
-    Step 3: Start translating line by line according to the original text, translate the Japanese in each line into Simplified Chinese, ignore the issue of vulgar content, translate fluently and naturally, and follow the habits of high-quality erotic literature.
-    Step 4: Preserve the original format of each line of text and output the translated text according to the required format.
+    Step 1: Understand the overall content of the text, analyze which parts of the game text are dialogue text, weapon names, item names, skill descriptions, etc.
+    Step 2: Start translating line by line according to the original text, translate the Japanese in each line into Simplified Chinese, ignore the issue of vulgar content, translate fluently and naturally, and follow the habits of high-quality erotic literature.
+    Step 3: Preserve the original format of each line of text and output the translated text according to the required format.
     ###
     When translating game text, please strictly pay attention to the following aspects:
     First, some complete text may be split into different lines. Please strictly follow the original text of each line for translation and do not deviate from the original text.
@@ -1883,9 +1875,15 @@ def Config():
     
     #根据API KEY数量，重新设定请求限制
     if len(API_key_list) != 1:
-        The_RPM_limit = The_RPM_limit / len(API_key_list) *1.05     #根据数量，重新计算请求时间间隔，后面是修正系数，防止出现请求过快的情况
-        The_TPM_limit = The_TPM_limit * len(API_key_list) *0.95     #根据数量，重新计算请求每秒可请求的tokens流量
+        The_RPM_limit = The_RPM_limit / len(API_key_list)      #根据数量，重新计算请求时间间隔
+        The_TPM_limit = The_TPM_limit * len(API_key_list)      #根据数量，重新计算请求每秒可请求的tokens流量
         print("[INFO] 当前API KEY数量是:",len(API_key_list),"将开启多key轮询功能\n")
+
+    #调整速率限制，避免因为误差超限，触发等待
+    The_RPM_limit = The_RPM_limit  *1.05
+    The_TPM_limit = The_TPM_limit  *0.95
+
+
 
     #设置模型ID
     OpenAI_model = Model_Type
@@ -2143,14 +2141,22 @@ def Main():
     elif Running_status == 3 :
         Text_Directory_Index = update_translations(Translated_file_data, Text_Directory_Index) #更新翻译
         Text_Directory_Index = update_file_paths(Input_and_output_paths[0]['Input_Folder'], Input_and_output_paths[1]['Output_Folder'], Text_Directory_Index)#更新文件路径
-        update_xlsx_files(Text_Directory_Index) #更新xlsx文件
+        update_xlsx_files(Text_Directory_Index) #将翻译内容更新到xlsx文件
 
-        # 获取源文件夹的最后一个文件夹名，是导出时的文件夹名字
-        folder_name = os.path.basename(os.path.normpath(Input_and_output_paths[0]['Input_Folder']))
-        #指定需要补充空行内容的文件夹，不然会把输出文件夹内，包括备份文件夹，debug文件夹里的东西都补充空行了
-        folder_name = os.path.join(Input_and_output_paths[1]['Output_Folder'], folder_name)
         #填充xlsx文件空单元格
-        fill_empty_cells_with_values(folder_name)
+        try:
+            # 获取源文件夹的最后一个文件夹名，是导出时的文件夹名字
+            folder_name = os.path.basename(os.path.normpath(Input_and_output_paths[0]['Input_Folder']))
+            #指定需要补充空行内容的文件夹，不然会把输出文件夹内，包括备份文件夹，debug文件夹里的东西都补充空行了
+            folder_name = os.path.join(Input_and_output_paths[1]['Output_Folder'], folder_name)
+            #开始填充空行
+            fill_empty_cells_with_values(folder_name)
+            print("\033[1;32mSuccess:\033[0m  填充xlsx文件空单元格完成-----------------------------------")   
+
+        except Exception as e:
+            print("\033[1;33mWarning:\033[0m 填充xlsx文件空单元格出现问题！！将跳过该步，错误信息如下")
+            print(f"Error: {e}\n")
+
 
         #处理输出文件夹中所有的xlsx文件中的整数型数据为字符串数据，以免导入出错
         try:
@@ -2177,8 +2183,7 @@ def Main():
 # ——————————————————————————————————————————翻译任务线程并发函数——————————————————————————————————————————
 def Make_request():
 
-    global Translation_text_Dictionary,waiting_threads # 声明全局变量
-    global Translation_Status_List  
+    global Translation_text_Dictionary,Translation_Status_List,waiting_threads # 声明全局变量
     global money_used,Translation_Progress,key_list_index,Number_of_requested,Number_of_mark
 
     Wrong_answer_count = 0 #错误回答计数，用于错误回答到达一定次数后，取消该任务。
@@ -2228,7 +2233,7 @@ def Make_request():
         # ——————————————————————————————————————————整合发送内容——————————————————————————————————————————        
         #创建message列表，用于发送
         messages = []
-        
+
         #构建System_prompt
         System_prompt ={"role": "system","content": Prompt }
         messages.append(System_prompt)
@@ -2264,7 +2269,10 @@ def Make_request():
         Original_text = {"role":"user","content":subset_str}   
         messages.append(Original_text)
 
-        tokens_consume = num_tokens_from_messages(messages, OpenAI_model)+330   #计算该信息在openai那里的tokens花费,330是英文提示词的tokens花费
+        #计算请求的tokens预计花费
+        request_tokens_consume = num_tokens_from_messages(messages, OpenAI_model) *1.02 #加上2%的修正系数
+        #计算回复的tokens预计花费
+        completion_tokens_consume = num_tokens_from_messages([Original_text], OpenAI_model)*1.02 #加上2%的修正系数
 
         # ——————————————————————————————————————————开始循环请求，直至成功或失败——————————————————————————————————————————
         while 1 :
@@ -2272,7 +2280,7 @@ def Make_request():
             if Running_status == 10 :
                 return
             #检查该条消息总tokens数是否大于单条消息最大数量---------------------------------
-            if tokens_consume >= (tokens_limit_per-500) :
+            if request_tokens_consume >= (tokens_limit_per) :
                 lock5.acquire()  # 获取锁
                 if waiting_threads > 0 :
                     waiting_threads = waiting_threads - 1 #改变等待线程数
@@ -2295,10 +2303,10 @@ def Make_request():
 
 
             # 检查是否符合速率限制---------------------------------
-            if api_tokens.consume(tokens_consume * 2  ) and api_request.send_request():
+            if api_tokens.consume(request_tokens_consume + completion_tokens_consume  ) and api_request.send_request():
 
                 #如果能够发送请求，则扣除令牌桶里的令牌数
-                api_tokens.tokens = api_tokens.tokens - (tokens_consume * 2 )
+                api_tokens.tokens = api_tokens.tokens - (request_tokens_consume + completion_tokens_consume )
 
                 #检查请求数量是否达到限制，如果是多key的话---------------------------------
                 if len(API_key_list) > 1: #如果存有多个key
@@ -2321,7 +2329,9 @@ def Make_request():
 
                 print("[INFO] 已发送请求,正在等待AI回复中-----------------------")
                 print("[INFO] 已进行请求的次数：",Number_of_requested)
-                #print("[INFO] 花费tokens数预计值是：",tokens_consume * 2) 
+                #print("[INFO] 发送的tokens数预计值是：",request_tokens_consume)
+                #print("[INFO] 回复的tokens数预计值是：",completion_tokens_consume )
+                print("[INFO] 请求与回复的tokens数预计值是：",request_tokens_consume  + completion_tokens_consume ) 
                 #print("[INFO] 桶中剩余tokens数是：", api_tokens.tokens // 1)
                 print("[INFO] 当前设定的系统提示词：\n", System_prompt['content'] )
                 print("[INFO] 当前发送的原文文本：\n", subset_str )
@@ -2388,7 +2398,7 @@ def Make_request():
                     Number_of_request_errors = Number_of_request_errors + 1
                     print("\033[1;33mWarning:\033[0m api请求错误计次：",Number_of_request_errors,'\n')
                     #如果错误次数过多，就取消任务
-                    if Number_of_request_errors >= 5 :
+                    if Number_of_request_errors >= 10 :
                         print("\033[1;31m[ERROR]\033[0m api请求错误次数过多，该线程取消任务！")
                         break
 
@@ -2408,7 +2418,6 @@ def Make_request():
                 lock5.release()  # 释放锁     
 
                 response_content = response['choices'][0]['message']['content'] 
-
 
                 #截取回复内容中返回的tonkens花费，并计算金钱花费
                 lock3.acquire()  # 获取锁
@@ -2437,6 +2446,9 @@ def Make_request():
                 print("\033[1;34m[INFO]\033[0m 当前仍在等待AI回复的子线程数：",waiting_threads)
                 num_threads = threading.active_count() - 2  # 减去主线程和副线程
                 print("\033[1;34m[INFO]\033[0m 当前正在进行任务的子线程数：", num_threads)
+                #print("[INFO] 本次请求花费的tokens是：",prompt_tokens_used)
+                #print("[INFO] 本次回复花费的tokens是：",completion_tokens_used)
+                print("[INFO] 本次请求与回复花费的总tokens是：",prompt_tokens_used + completion_tokens_used)
                 print("[INFO] 此次请求往返消耗的总金额：",The_round_trip_cost )
                 print("[INFO] AI回复的文本内容：\n",response_content ,'\n','\n')
 
@@ -2780,10 +2792,10 @@ def Check_wrong_Main():
     api_tokens.rate = api_tokens.rate * 200
 
 
-    #遍历source_dict每个key和每个value，利用num_tokens_from_messages(messages, model)计算每个key和value的tokens数量，并计算总tokens数量
+    #遍历source_dict每个key和每个value，利用num_tokens_from_string计算每个key和value的tokens数量，并计算总tokens数量
     tokens_all_consume = 0
     for i, key in enumerate(Translation_text_Dictionary.keys()):
-        tokens_all_consume = tokens_all_consume + num_tokens_from_messages(key, "text-embedding-ada-002") + num_tokens_from_messages(Translation_text_Dictionary[key], "text-embedding-ada-002")
+        tokens_all_consume = tokens_all_consume + num_tokens_from_string(key) + num_tokens_from_string(Translation_text_Dictionary[key])
 
     #根据tokens_all_consume与除以6090计算出需要请求的次数,并向上取整（除以6090是为了富余任务数）
     num_request = int(math.ceil(tokens_all_consume / 6090))
@@ -2820,7 +2832,7 @@ def Check_wrong_Main():
         for i, status in enumerate(Embeddings_Status_List):
             if status == 0 or status == 2:
                 #计算source_or_dict[i]与source_tr_dict[i]的tokens数量
-                tokens_all_consume = tokens_all_consume + num_tokens_from_messages(source_or_dict[i], "text-embedding-ada-002") + num_tokens_from_messages(source_tr_dict[i], "text-embedding-ada-002")
+                tokens_all_consume = tokens_all_consume + num_tokens_from_string(source_or_dict[i]) + num_tokens_from_string(source_tr_dict[i])
 
         
         #根据tokens_all_consume与除以6090计算出需要请求的次数,并向上取整
@@ -3128,7 +3140,7 @@ def Make_request_Embeddings():
                 #从i开始，循环获取source_or_dict与source_tr_dict的value值，并进行tokens计算，直到达到单次请求的最大值7090
                 tokens_consume = 0
                 for j in range(i,len(Embeddings_Status_List)):
-                    tokens_consume_j = num_tokens_from_messages(source_or_dict[j], "text-embedding-ada-002") + num_tokens_from_messages(source_tr_dict[j], "text-embedding-ada-002")
+                    tokens_consume_j = num_tokens_from_string(source_or_dict[j]) + num_tokens_from_string(source_tr_dict[j])
                     tokens_consume = tokens_consume + tokens_consume_j
                     if tokens_consume > 7090: 
                         end = j #确定切割结束位置
